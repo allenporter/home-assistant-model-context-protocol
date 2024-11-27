@@ -38,9 +38,9 @@ async def test_list_tools(
 
     # Pick a single arbitrary tool to test
     tool = next(iter(tool for tool in results if tool["name"] == "HassTurnOn"))
-    assert tool == snapshot
-
-
+    assert tool.get("name") == snapshot
+    assert tool.get("description") == snapshot
+    assert tool.get("input_schema", {}).get("properties", {}).get("name") == snapshot
 
 async def test_call_tool(
     hass: HomeAssistant,

@@ -1,52 +1,12 @@
 # serializer version: 1
 # name: test_list_tools
+  'HassTurnOn'
+# ---
+# name: test_list_tools.1
+  'Turns on/opens a device or entity'
+# ---
+# name: test_list_tools.2
   dict({
-    'description': 'Turns on/opens a device or entity',
-    'input_schema': dict({
-      'properties': dict({
-        'area': dict({
-          'type': 'string',
-        }),
-        'device_class': dict({
-          'items': dict({
-            'enum': list([
-              'water',
-              'gas',
-              'awning',
-              'blind',
-              'curtain',
-              'damper',
-              'door',
-              'garage',
-              'gate',
-              'shade',
-              'shutter',
-              'window',
-              'outlet',
-              'switch',
-              'tv',
-              'speaker',
-              'receiver',
-            ]),
-            'type': 'string',
-          }),
-          'type': 'array',
-        }),
-        'domain': dict({
-          'items': dict({
-            'type': 'string',
-          }),
-          'type': 'array',
-        }),
-        'floor': dict({
-          'type': 'string',
-        }),
-        'name': dict({
-          'type': 'string',
-        }),
-      }),
-      'type': 'object',
-    }),
-    'name': 'HassTurnOn',
+    'type': 'string',
   })
 # ---

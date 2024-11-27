@@ -71,7 +71,7 @@ async def test_tools_list(
     )
     msg = await client.receive_json()
     assert msg["success"]
-    results = msg.get("result")
+    results = msg["result"]["tools"]
 
     # Pick a single arbitrary tool to test
     tool = next(iter(tool for tool in results if tool["name"] == "HassTurnOn"))
@@ -100,7 +100,7 @@ async def test_tools_call(
     )
     msg = await client.receive_json()
     assert msg["success"]
-    results = msg.get("result")
+    results = msg["result"]["content"]
     assert len(results) == 1
     result = results[0]
     data = result["text"]
@@ -130,7 +130,7 @@ async def test_tools_call_error(
     )
     msg = await client.receive_json()
     assert msg["success"]
-    results = msg.get("result")
+    results = msg["result"]["content"]
     assert len(results) == 1
     result = results[0]
     data = result["text"]
@@ -152,7 +152,7 @@ async def test_resources_list(
     )
     msg = await client.receive_json()
     assert msg["success"]
-    results = msg.get("result")
+    results = msg["result"]["resources"]
     assert results == [
         {
             "description": "",
@@ -179,5 +179,5 @@ async def test_resources_read(
     )
     msg = await client.receive_json()
     assert msg["success"]
-    results = msg.get("result")
+    results = msg["result"]["contents"]
     assert results ==  snapshot

@@ -1,5 +1,6 @@
 """Model Context Protocol websocket API."""
 
+import dataclasses
 from collections.abc import Callable
 from typing import Any, cast
 import logging
@@ -24,7 +25,7 @@ from homeassistant.helpers import (
 )
 
 from .const import DEFAULT_LLM_API, DOMAIN
-from .model import Tool, InputSchema, TextContent, Resource
+from .model import Tool, InputSchema, TextContent, Resource, TextResourceContents
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -85,7 +86,7 @@ async def websocket_tools_list(
     llm_context = _llm_context(connection, msg)
     llm_api = await llm.async_get_api(hass, DEFAULT_LLM_API, llm_context)
     tools = [_format_tool(tool, llm_api.custom_serializer) for tool in llm_api.tools]
-    connection.send_result(msg["id"], tools)
+    connection.send_result(msg["id"], {"tools": tools})
 
 
 @websocket_api.websocket_command(
@@ -111,9 +112,11 @@ async def websocket_tools_call(
     )
     _LOGGER.debug("Tool call: %s(%s)", tool_input.tool_name, tool_input.tool_args)
 
+    is_error = False
     try:
         tool_response = await llm_api.async_call_tool(tool_input)
     except (HomeAssistantError, vol.Invalid) as e:
+        is_error = True
         tool_response = {"error": type(e).__name__}
         if str(e):
             tool_response["error_text"] = str(e)
@@ -121,12 +124,15 @@ async def websocket_tools_call(
     _LOGGER.debug("Tool response: %s", tool_response)
     connection.send_result(
         msg["id"],
-        [
-            TextContent(
-                type="text",
-                text=json.dumps(tool_response),
-            )
-        ],
+        {
+            "content": [
+                TextContent(
+                    type="text",
+                    text=json.dumps(tool_response),
+                )
+            ],
+            "is_error": is_error,
+        },
     )
 
 
@@ -237,7 +243,12 @@ async def websocket_resources_list(
         )
         for entity_id, info in entities.items()
     ]
-    connection.send_result(msg["id"], resources)
+    connection.send_result(
+        msg["id"],
+        {
+            "resources": resources,
+        },
+    )
 
 
 @websocket_api.websocket_command(
@@ -264,7 +275,8 @@ async def websocket_resources_read(
     connection.send_result(
         msg["id"],
         {
-            "uri": uri,
-            **info,
+            "contents": [
+                dataclasses.asdict(TextResourceContents(uri=uri, text=json.dumps(info))),
+            ]
         },
     )

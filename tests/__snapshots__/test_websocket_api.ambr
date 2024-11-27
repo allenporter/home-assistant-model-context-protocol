@@ -1,15 +1,12 @@
 # serializer version: 1
 # name: test_resources_read
-  dict({
-    'attributes': dict({
-      'humidity': '65',
-      'temperature': '0.9',
+  list([
+    dict({
+      'mimeType': None,
+      'text': '{"names": "Kitchen", "domain": "light", "state": "on", "attributes": {"temperature": "0.9", "humidity": "65"}}',
+      'uri': 'entity_id://light.kitchen',
     }),
-    'domain': 'light',
-    'names': 'Kitchen',
-    'state': 'on',
-    'uri': 'entity_id://light.kitchen',
-  })
+  ])
 # ---
 # name: test_tools_call
   dict({

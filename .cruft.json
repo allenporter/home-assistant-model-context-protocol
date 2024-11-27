@@ -1,0 +1,19 @@
+{
+  "template": "http://github.com/allenporter/cookiecutter-home-assistant-custom-component",
+  "commit": "c3c7360de3a77efd4f4a8f68da991235e784fe6c",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "full_name": "Allen Porter",
+      "email": "allen.porter@gmail.com",
+      "github_username": "allenporter",
+      "project_name": "model-context-protocol",
+      "domain": "model_context_protocol",
+      "name": "Model Context Protocol",
+      "description": "A Home Assistant Model Context Protocol Custom Component",
+      "version": "0.0.1",
+      "_template": "http://github.com/allenporter/cookiecutter-home-assistant-custom-component"
+    }
+  },
+  "directory": null
+}

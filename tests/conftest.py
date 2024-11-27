@@ -52,7 +52,7 @@ async def mock_setup_integration(
 
 @pytest.fixture(name="config_entry")
 async def mock_config_entry(
-    hass: HomeAssistant, zwave_device_id: str
+    hass: HomeAssistant,
 ) -> MockConfigEntry:
     """Fixture to create a configuration entry."""
     config_entry = MockConfigEntry(

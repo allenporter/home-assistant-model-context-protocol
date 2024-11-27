@@ -4,7 +4,7 @@
   "codeowners": ["@allenporter"],
   "config_flow": true,
   "documentation": "https://github.com/allenporter/home-assistant-model-context-protocol",
-  "integration_type": "integration",
+  "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/allenporter/home-assistant-model-context-protocol/issues",
   "single_config_entry": true,

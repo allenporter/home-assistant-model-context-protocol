@@ -24,7 +24,7 @@ from homeassistant.helpers import (
 )
 
 from .const import DEFAULT_LLM_API, DOMAIN
-from .model import Tool, InputSchema, TextContent, Resource, ResourceContents
+from .model import Tool, InputSchema, TextContent, Resource
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -266,5 +266,5 @@ async def websocket_resources_read(
         {
             "uri": uri,
             **info,
-        }
+        },
     )

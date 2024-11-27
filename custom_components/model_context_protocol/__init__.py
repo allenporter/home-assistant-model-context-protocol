@@ -7,9 +7,10 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from .websocket_api import async_register_websocket_api
+from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
+from .websocket_api import async_register_websocket_api
 
 __all__ = [
     "DOMAIN",
@@ -18,7 +19,8 @@ __all__ = [
 _LOGGER = logging.getLogger(__name__)
 
 
-PLATFORMS: tuple[Platform] = ()
+PLATFORMS: tuple[Platform] = ()  # type: ignore[assignment]
+
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the model_context_protocol component."""

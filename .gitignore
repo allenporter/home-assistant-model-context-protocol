@@ -1,6 +1,8 @@
 .mypy_cache/
 *.pyc
 venv
+.env
+.venv
 *.egg-info
 deps
 ls

@@ -83,6 +83,7 @@ async def websocket_tools_list(
     msg: dict[str, Any],
 ) -> None:
     """Handle listing tools."""
+    _LOGGER.debug("List tools: %s", msg)
     llm_context = _llm_context(connection, msg)
     llm_api = await llm.async_get_api(hass, DEFAULT_LLM_API, llm_context)
     tools = [_format_tool(tool, llm_api.custom_serializer) for tool in llm_api.tools]
@@ -233,6 +234,7 @@ async def websocket_resources_list(
     msg: dict[str, Any],
 ) -> None:
     """Handle listing resources."""
+    _LOGGER.debug("List resource: %s", msg)
     entities = _get_exposed_entities(hass, DOMAIN)
     resources = [
         Resource(
@@ -264,6 +266,7 @@ async def websocket_resources_read(
     msg: dict[str, Any],
 ) -> None:
     """Handle listing resources."""
+    _LOGGER.debug("Read resource: %s", msg)
     uri = msg["uri"]
     if not uri.startswith(URI_PREFIX):
         raise vol.Invalid(f"Invalid URI format did not start with {URI_PREFIX}")

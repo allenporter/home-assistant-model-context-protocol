@@ -1,12 +1,24 @@
 # serializer version: 1
+# name: test_resources_read
+  dict({
+    'attributes': dict({
+      'humidity': '65',
+      'temperature': '0.9',
+    }),
+    'domain': 'light',
+    'names': 'Kitchen',
+    'state': 'on',
+    'uri': 'entity_id://light.kitchen',
+  })
+# ---
 # name: test_tools_call
   dict({
     'failed': list([
     ]),
     'success': list([
       dict({
-        'id': 'light.test_light',
-        'name': 'test light',
+        'id': 'light.kitchen',
+        'name': 'Kitchen',
         'type': 'entity',
       }),
     ]),

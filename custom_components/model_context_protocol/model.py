@@ -27,3 +27,24 @@ class TextContent:
 
     type: Literal["text"]
     text: str
+
+
+@dataclass
+class Resource:
+    """A resource that can be read via the Model Context Protocol."""
+
+    url: str
+    name: str
+    description: str
+    mimeType: str | None
+
+
+@dataclass
+class ResourceContents:
+    """The contents of a specific resource or sub-resource."""
+
+    uri: str
+    """The URI of this resource."""
+
+    mimeType: str | None = None
+    """The MIME type of this resource, if known."""

@@ -2,25 +2,57 @@
 
 import pytest
 import json
+from decimal import Decimal
+from typing import Any
 
 from syrupy import SnapshotAssertion
 
+from homeassistant.components.homeassistant.exposed_entities import async_expose_entity
 from homeassistant.const import SERVICE_TURN_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from pytest_homeassistant_custom_component.common import MockConfigEntry, async_mock_service
+from custom_components.model_context_protocol.const import DOMAIN
+
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_mock_service,
+)
 from pytest_homeassistant_custom_component.typing import WebSocketGenerator
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True, name="setup_integration")
 async def mock_setup_integration(
-    hass: HomeAssistant, config_entry: MockConfigEntry,
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
 ) -> None:
     """Setup the integration"""
     assert await async_setup_component(hass, "homeassistant", {})
     assert await async_setup_component(hass, "conversation", {})
+
+
+@pytest.fixture(autouse=True)
+def mock_light_entity_fixture(
+    hass: HomeAssistant,
+    device_registry: dr.DeviceRegistry,
+    entity_registry: er.EntityRegistry,
+    setup_integration: Any,
+) -> None:
+    """Fixture for light entity."""
+    entry1 = entity_registry.async_get_or_create(
+        "light",
+        "kitchen",
+        "mock-id-kitchen",
+        original_name="Kitchen",
+        suggested_object_id="kitchen",
+    )
+    hass.states.async_set(
+        entry1.entity_id,
+        "on",
+        {"friendly_name": "Kitchen", "temperature": Decimal("0.9"), "humidity": 65},
+    )
+    async_expose_entity(hass, DOMAIN, "light.kitchen", True)
 
 
 async def test_tools_list(
@@ -52,12 +84,9 @@ async def test_tools_call(
     hass: HomeAssistant,
     hass_ws_client: WebSocketGenerator,
     config_entry: MockConfigEntry,
-    device_registry: dr.DeviceRegistry,
-    entity_registry: er.EntityRegistry,
     snapshot: SnapshotAssertion,
 ) -> None:
     """Test the tools call command."""
-    hass.states.async_set("light.test_light", "off")
     calls = async_mock_service(hass, "light", SERVICE_TURN_ON)
 
     client = await hass_ws_client(hass)
@@ -66,7 +95,7 @@ async def test_tools_call(
         {
             "type": "mcp/tools/call",
             "name": "HassTurnOn",
-            "arguments": {"name": "test light"},
+            "arguments": {"name": "kitchen"},
         }
     )
     msg = await client.receive_json()
@@ -82,7 +111,7 @@ async def test_tools_call(
     call = calls[0]
     assert call.domain == "light"
     assert call.service == "turn_on"
-    assert call.data == {"entity_id": ["light.test_light"]}
+    assert call.data == {"entity_id": ["light.kitchen"]}
 
 
 async def test_tools_call_error(
@@ -96,7 +125,7 @@ async def test_tools_call_error(
         {
             "type": "mcp/tools/call",
             "name": "HassTurnOn",
-            "arguments": {"name": "light.kitchen"},
+            "arguments": {"name": "unknown entity name"},
         }
     )
     msg = await client.receive_json()
@@ -107,3 +136,48 @@ async def test_tools_call_error(
     data = result["text"]
     error = json.loads(data)
     assert error.get("error") == "MatchFailedError"
+
+
+async def test_resources_list(
+    hass: HomeAssistant,
+    hass_ws_client: WebSocketGenerator,
+) -> None:
+    """Test the resources list command."""
+    client = await hass_ws_client(hass)
+
+    await client.send_json_auto_id(
+        {
+            "type": "mcp/resources/list",
+        }
+    )
+    msg = await client.receive_json()
+    assert msg["success"]
+    results = msg.get("result")
+    assert results == [
+        {
+            "description": "",
+            "mimeType": None,
+            "name": "Kitchen",
+            "url": "entity_id://light.kitchen",
+        }
+    ]
+
+
+async def test_resources_read(
+    hass: HomeAssistant,
+    hass_ws_client: WebSocketGenerator,
+    snapshot: SnapshotAssertion,
+) -> None:
+    """Test the resources list command."""
+    client = await hass_ws_client(hass)
+
+    await client.send_json_auto_id(
+        {
+            "type": "mcp/resources/read",
+            "uri": "entity_id://light.kitchen",
+        }
+    )
+    msg = await client.receive_json()
+    assert msg["success"]
+    results = msg.get("result")
+    assert results ==  snapshot

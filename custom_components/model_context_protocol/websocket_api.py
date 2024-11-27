@@ -4,27 +4,41 @@ from collections.abc import Callable
 from typing import Any, cast
 import logging
 import json
+from enum import Enum
+from decimal import Decimal
+
 
 import voluptuous as vol
 from voluptuous_openapi import convert
 
+from homeassistant.components.homeassistant import async_should_expose
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import llm
+from homeassistant.components.script import DOMAIN as SCRIPT_DOMAIN
+from homeassistant.helpers import (
+    llm,
+    area_registry as ar,
+    device_registry as dr,
+    entity_registry as er,
+)
 
 from .const import DEFAULT_LLM_API, DOMAIN
-from .model import Tool, InputSchema, TextContent
+from .model import Tool, InputSchema, TextContent, Resource, ResourceContents
 
 
 _LOGGER = logging.getLogger(__name__)
+
+URI_PREFIX = "entity_id://"
 
 
 @callback
 def async_register_websocket_api(hass: HomeAssistant) -> None:
     """Register the websocket API."""
-    websocket_api.async_register_command(hass, websocket_list_tools)
-    websocket_api.async_register_command(hass, websocket_call_tool)
+    websocket_api.async_register_command(hass, websocket_tools_list)
+    websocket_api.async_register_command(hass, websocket_tools_call)
+    websocket_api.async_register_command(hass, websocket_resources_list)
+    websocket_api.async_register_command(hass, websocket_resources_read)
 
 
 def _format_tool(
@@ -50,8 +64,8 @@ def _llm_context(
         platform=DOMAIN,
         context=connection.context(msg),
         user_prompt=None,
-        language=None,
-        assistant=None,
+        language="*",
+        assistant=DOMAIN,
         device_id=None,
     )
 
@@ -62,7 +76,7 @@ def _llm_context(
     }
 )
 @websocket_api.decorators.async_response
-async def websocket_list_tools(
+async def websocket_tools_list(
     hass: HomeAssistant,
     connection: websocket_api.connection.ActiveConnection,
     msg: dict[str, Any],
@@ -82,7 +96,7 @@ async def websocket_list_tools(
     }
 )
 @websocket_api.decorators.async_response
-async def websocket_call_tool(
+async def websocket_tools_call(
     hass: HomeAssistant,
     connection: websocket_api.connection.ActiveConnection,
     msg: dict[str, Any],
@@ -113,4 +127,144 @@ async def websocket_call_tool(
                 text=json.dumps(tool_response),
             )
         ],
+    )
+
+
+def _get_exposed_entities(
+    hass: HomeAssistant, assistant: str
+) -> dict[str, dict[str, Any]]:
+    """Get exposed entities."""
+    area_registry = ar.async_get(hass)
+    entity_registry = er.async_get(hass)
+    device_registry = dr.async_get(hass)
+    interesting_attributes = {
+        "temperature",
+        "current_temperature",
+        "temperature_unit",
+        "brightness",
+        "humidity",
+        "unit_of_measurement",
+        "device_class",
+        "current_position",
+        "percentage",
+        "volume_level",
+        "media_title",
+        "media_artist",
+        "media_album_name",
+    }
+
+    entities = {}
+
+    for state in hass.states.async_all():
+        _LOGGER.debug("s=%s", state)
+        if (
+            not async_should_expose(hass, assistant, state.entity_id)
+            or state.domain == SCRIPT_DOMAIN
+        ):
+            continue
+        _LOGGER.debug("pass=%s", state)
+
+        description: str | None = None
+        entity_entry = entity_registry.async_get(state.entity_id)
+        names = [state.name]
+        area_names = []
+
+        if entity_entry is not None:
+            names.extend(entity_entry.aliases)
+            if entity_entry.area_id and (
+                area := area_registry.async_get_area(entity_entry.area_id)
+            ):
+                # Entity is in area
+                area_names.append(area.name)
+                area_names.extend(area.aliases)
+            elif entity_entry.device_id and (
+                device := device_registry.async_get(entity_entry.device_id)
+            ):
+                # Check device area
+                if device.area_id and (
+                    area := area_registry.async_get_area(device.area_id)
+                ):
+                    area_names.append(area.name)
+                    area_names.extend(area.aliases)
+
+        info: dict[str, Any] = {
+            "names": ", ".join(names),
+            "domain": state.domain,
+            "state": state.state,
+        }
+
+        if description:
+            info["description"] = description
+
+        if area_names:
+            info["areas"] = ", ".join(area_names)
+
+        if attributes := {
+            attr_name: (
+                str(attr_value)
+                if isinstance(attr_value, (Enum, Decimal, int))
+                else attr_value
+            )
+            for attr_name, attr_value in state.attributes.items()
+            if attr_name in interesting_attributes
+        }:
+            info["attributes"] = attributes
+
+        entities[state.entity_id] = info
+
+    return entities
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "mcp/resources/list",
+    }
+)
+@websocket_api.decorators.async_response
+async def websocket_resources_list(
+    hass: HomeAssistant,
+    connection: websocket_api.connection.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Handle listing resources."""
+    entities = _get_exposed_entities(hass, DOMAIN)
+    resources = [
+        Resource(
+            url=f"{URI_PREFIX}{entity_id}",
+            name=info["names"],
+            description=info.get("description", ""),
+            mimeType=None,
+        )
+        for entity_id, info in entities.items()
+    ]
+    connection.send_result(msg["id"], resources)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "mcp/resources/read",
+        vol.Required("uri"): str,
+    }
+)
+@websocket_api.decorators.async_response
+async def websocket_resources_read(
+    hass: HomeAssistant,
+    connection: websocket_api.connection.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Handle listing resources."""
+    uri = msg["uri"]
+    if not uri.startswith(URI_PREFIX):
+        raise vol.Invalid(f"Invalid URI format did not start with {URI_PREFIX}")
+    entity_id = uri[len(URI_PREFIX) :]
+    entities = _get_exposed_entities(hass, DOMAIN)
+    if entity_id not in entities:
+        raise vol.Invalid(f"Entity {entity_id} not found")
+    info = entities[entity_id]
+    connection.send_result(
+        msg["id"],
+        {
+            "uri": uri,
+            **info,
+        }
     )

@@ -1,11 +1,26 @@
 # serializer version: 1
-# name: test_list_tools
+# name: test_tools_call
+  dict({
+    'failed': list([
+    ]),
+    'success': list([
+      dict({
+        'id': 'light.test_light',
+        'name': 'test light',
+        'type': 'entity',
+      }),
+    ]),
+    'targets': list([
+    ]),
+  })
+# ---
+# name: test_tools_list
   'HassTurnOn'
 # ---
-# name: test_list_tools.1
+# name: test_tools_list.1
   'Turns on/opens a device or entity'
 # ---
-# name: test_list_tools.2
+# name: test_tools_list.2
   dict({
     'type': 'string',
   })

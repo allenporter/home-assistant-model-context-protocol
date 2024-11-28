@@ -135,3 +135,43 @@ async def test_tools_call_error(
     data = result["text"]
     error = json.loads(data)
     assert error.get("error") == "MatchFailedError"
+
+
+async def test_prompts_list(
+    hass: HomeAssistant,
+    hass_ws_client: WebSocketGenerator,
+    snapshot: SnapshotAssertion,
+) -> None:
+    """Test the tools list command."""
+
+    client = await hass_ws_client(hass)
+
+    await client.send_json_auto_id(
+        {
+            "type": "mcp/prompts/list",
+        }
+    )
+    msg = await client.receive_json()
+    assert msg["success"]
+    assert msg["result"][0]["name"] == "assist"
+
+
+async def test_prompts_get(
+    hass: HomeAssistant,
+    hass_ws_client: WebSocketGenerator,
+    snapshot: SnapshotAssertion,
+) -> None:
+    """Test the tools list command."""
+
+    client = await hass_ws_client(hass)
+
+    await client.send_json_auto_id(
+        {
+            "type": "mcp/prompts/get",
+            "name": "assist",
+        }
+    )
+    msg = await client.receive_json()
+    assert msg["success"]
+    prompt = msg["result"]["messages"][0]["content"]["text"]
+    assert "Answer questions about the world" in prompt

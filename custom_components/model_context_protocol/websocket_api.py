@@ -4,8 +4,6 @@ from collections.abc import Callable
 from typing import Any, cast
 import logging
 import json
-from enum import Enum
-from decimal import Decimal
 
 
 import voluptuous as vol
@@ -16,9 +14,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import (
     llm,
-    area_registry as ar,
-    device_registry as dr,
-    entity_registry as er,
+    template,
 )
 
 from .const import DEFAULT_LLM_API, DOMAIN
@@ -36,6 +32,8 @@ def async_register_websocket_api(hass: HomeAssistant) -> None:
     """Register the websocket API."""
     websocket_api.async_register_command(hass, websocket_tools_list)
     websocket_api.async_register_command(hass, websocket_tools_call)
+    websocket_api.async_register_command(hass, websocket_prompts_list)
+    websocket_api.async_register_command(hass, websocket_prompts_get)
 
 
 def _entity_id_to_uri(entity_id: str) -> str:
@@ -147,86 +145,83 @@ async def websocket_tools_call(
     )
 
 
-def _get_exposed_entities(
-    hass: HomeAssistant, assistant: str
-) -> dict[str, dict[str, Any]]:
-    """Get exposed entities."""
-    area_registry = ar.async_get(hass)
-    entity_registry = er.async_get(hass)
-    device_registry = dr.async_get(hass)
-    interesting_attributes = {
-        "temperature",
-        "current_temperature",
-        "temperature_unit",
-        "brightness",
-        "humidity",
-        "unit_of_measurement",
-        "device_class",
-        "current_position",
-        "percentage",
-        "volume_level",
-        "media_title",
-        "media_artist",
-        "media_album_name",
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "mcp/prompts/list",
     }
+)
+@websocket_api.decorators.async_response
+async def websocket_prompts_list(
+    hass: HomeAssistant,
+    connection: websocket_api.connection.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Handle listing tools."""
+    _LOGGER.debug("List prompts: %s", msg)
+    connection.send_result(
+        msg["id"],
+        [
+            {
+                "name": "assist",
+                "description": "Prompt for the Home Assistant Assist actions that contains the current state of all entities in the Home.",
+            }
+        ],
+    )
 
-    entities = {}
 
-    for state in hass.states.async_all():
-        _LOGGER.debug("s=%s", state)
-        # if (
-        #     not async_should_expose(hass, assistant, state.entity_id)
-        #     or state.domain == SCRIPT_DOMAIN
-        # ):
-        #     continue
-        _LOGGER.debug("pass=%s", state)
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "mcp/prompts/get",
+        vol.Required("name"): str,
+    }
+)
+@websocket_api.decorators.async_response
+async def websocket_prompts_get(
+    hass: HomeAssistant,
+    connection: websocket_api.connection.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Handle listing tools."""
+    if msg["name"] != "assist":
+        raise vol.Invalid("Invalid prompt name")
+    llm_context = _llm_context(connection, msg)
+    llm_api = await llm.async_get_api(hass, DEFAULT_LLM_API, llm_context)
 
-        description: str | None = None
-        entity_entry = entity_registry.async_get(state.entity_id)
-        names = [state.name]
-        area_names = []
-
-        if entity_entry is not None:
-            names.extend(entity_entry.aliases)
-            if entity_entry.area_id and (
-                area := area_registry.async_get_area(entity_entry.area_id)
-            ):
-                # Entity is in area
-                area_names.append(area.name)
-                area_names.extend(area.aliases)
-            elif entity_entry.device_id and (
-                device := device_registry.async_get(entity_entry.device_id)
-            ):
-                # Check device area
-                if device.area_id and (
-                    area := area_registry.async_get_area(device.area_id)
-                ):
-                    area_names.append(area.name)
-                    area_names.extend(area.aliases)
-
-        info: dict[str, Any] = {
-            "names": ", ".join(names),
-            "domain": state.domain,
-            "state": state.state,
-        }
-
-        if description:
-            info["description"] = description
-
-        if area_names:
-            info["areas"] = ", ".join(area_names)
-
-        if attributes := {
-            attr_name: (
-                str(attr_value)
-                if isinstance(attr_value, (Enum, Decimal, int))
-                else attr_value
-            )
-            for attr_name, attr_value in state.attributes.items()
-            if attr_name in interesting_attributes
-        }:
-            info["attributes"] = attributes
-
-        entities[state.entity_id] = info
-
-    return entities
+    _LOGGER.debug("List prompts: %s", msg)
+    if (
+        llm_context.context
+        and llm_context.context.user_id
+        and (user := await hass.auth.async_get_user(llm_context.context.user_id))
+    ):
+        user_name = user.name
+    prompt = "\n".join(
+        [
+            template.Template(
+                llm.BASE_PROMPT + llm.DEFAULT_INSTRUCTIONS_PROMPT,
+                hass,
+            ).async_render(
+                {
+                    "ha_name": hass.config.location_name,
+                    "user_name": user_name,
+                    "llm_context": llm_context,
+                },
+                parse_result=False,
+            ),
+            llm_api.api_prompt,
+        ]
+    )
+    connection.send_result(
+        msg["id"],
+        {
+            "description": "Prompt for the Home Assistant Assist actions that contains the current state of all entities in the Home.",
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": {
+                        "type": "text",
+                        "text": prompt,
+                    },
+                }
+            ],
+        },
+    )

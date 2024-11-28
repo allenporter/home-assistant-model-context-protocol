@@ -33,7 +33,7 @@ class TextContent:
 class Resource:
     """A resource that can be read via the Model Context Protocol."""
 
-    url: str
+    uri: str
     name: str
     description: str
     mimeType: str | None

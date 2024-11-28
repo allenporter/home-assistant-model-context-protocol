@@ -235,16 +235,17 @@ async def websocket_resources_list(
 ) -> None:
     """Handle listing resources."""
     _LOGGER.debug("List resource: %s", msg)
-    entities = _get_exposed_entities(hass, DOMAIN)
+    entities = _get_exposed_entities(hass, "assistant")
     resources = [
         Resource(
-            url=f"{URI_PREFIX}{entity_id}",
+            uri=f"{URI_PREFIX}{entity_id}",
             name=info["names"],
             description=info.get("description", ""),
             mimeType=None,
         )
         for entity_id, info in entities.items()
     ]
+    _LOGGER.debug("Sent: %s", len(resources))
     connection.send_result(
         msg["id"],
         {
@@ -271,7 +272,7 @@ async def websocket_resources_read(
     if not uri.startswith(URI_PREFIX):
         raise vol.Invalid(f"Invalid URI format did not start with {URI_PREFIX}")
     entity_id = uri[len(URI_PREFIX) :]
-    entities = _get_exposed_entities(hass, DOMAIN)
+    entities = _get_exposed_entities(hass, "assistant")
     if entity_id not in entities:
         raise vol.Invalid(f"Entity {entity_id} not found")
     info = entities[entity_id]

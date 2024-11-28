@@ -158,7 +158,7 @@ async def test_resources_list(
             "description": "",
             "mimeType": None,
             "name": "Kitchen",
-            "url": "entity_id://light.kitchen",
+            "uri": "entity_id://light.kitchen",
         }
     ]
 

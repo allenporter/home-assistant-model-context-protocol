@@ -24,7 +24,7 @@ from .model import Tool, InputSchema, TextContent
 _LOGGER = logging.getLogger(__name__)
 
 URI_PREFIX = "file:///"
-ASSISTANT = "assistant"
+ASSISTANT = "conversation"
 
 
 @callback
@@ -173,6 +173,7 @@ async def websocket_prompts_list(
     {
         vol.Required("type"): "mcp/prompts/get",
         vol.Required("name"): str,
+        vol.Optional("arguments"): dict,
     }
 )
 @websocket_api.decorators.async_response

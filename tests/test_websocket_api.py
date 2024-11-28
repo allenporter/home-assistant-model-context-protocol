@@ -51,7 +51,7 @@ def mock_light_entity_fixture(
         "on",
         {"friendly_name": "Kitchen", "temperature": Decimal("0.9"), "humidity": 65},
     )
-    async_expose_entity(hass, "assistant", "light.kitchen", True)
+    async_expose_entity(hass, "conversation", "light.kitchen", True)
 
 
 async def test_tools_list(

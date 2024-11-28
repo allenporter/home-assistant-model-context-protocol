@@ -1,6 +1,5 @@
 """Model Context Protocol websocket API."""
 
-import dataclasses
 from collections.abc import Callable
 from typing import Any, cast
 import logging
@@ -12,11 +11,9 @@ from decimal import Decimal
 import voluptuous as vol
 from voluptuous_openapi import convert
 
-from homeassistant.components.homeassistant import async_should_expose
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.components.script import DOMAIN as SCRIPT_DOMAIN
 from homeassistant.helpers import (
     llm,
     area_registry as ar,
@@ -25,12 +22,12 @@ from homeassistant.helpers import (
 )
 
 from .const import DEFAULT_LLM_API, DOMAIN
-from .model import Tool, InputSchema, TextContent, Resource, TextResourceContents
+from .model import Tool, InputSchema, TextContent
 
 
 _LOGGER = logging.getLogger(__name__)
 
-URI_PREFIX = "entity_id://"
+URI_PREFIX = "file:///"
 ASSISTANT = "assistant"
 
 
@@ -39,14 +36,13 @@ def async_register_websocket_api(hass: HomeAssistant) -> None:
     """Register the websocket API."""
     websocket_api.async_register_command(hass, websocket_tools_list)
     websocket_api.async_register_command(hass, websocket_tools_call)
-    websocket_api.async_register_command(hass, websocket_resources_list)
-    websocket_api.async_register_command(hass, websocket_resources_read)
 
 
 def _entity_id_to_uri(entity_id: str) -> str:
     """Create an entity ID URI."""
     entity_id_path = "/".join(entity_id.split("."))
     return f"{URI_PREFIX}{entity_id_path}"
+
 
 def _entity_id_from_uri(uri: str) -> str:
     """Create an entity ID URI."""
@@ -178,11 +174,11 @@ def _get_exposed_entities(
 
     for state in hass.states.async_all():
         _LOGGER.debug("s=%s", state)
-        if (
-            not async_should_expose(hass, assistant, state.entity_id)
-            or state.domain == SCRIPT_DOMAIN
-        ):
-            continue
+        # if (
+        #     not async_should_expose(hass, assistant, state.entity_id)
+        #     or state.domain == SCRIPT_DOMAIN
+        # ):
+        #     continue
         _LOGGER.debug("pass=%s", state)
 
         description: str | None = None
@@ -234,65 +230,3 @@ def _get_exposed_entities(
         entities[state.entity_id] = info
 
     return entities
-
-
-@websocket_api.websocket_command(
-    {
-        vol.Required("type"): "mcp/resources/list",
-    }
-)
-@websocket_api.decorators.async_response
-async def websocket_resources_list(
-    hass: HomeAssistant,
-    connection: websocket_api.connection.ActiveConnection,
-    msg: dict[str, Any],
-) -> None:
-    """Handle listing resources."""
-    _LOGGER.debug("List resource: %s", msg)
-    entities = _get_exposed_entities(hass, ASSISTANT)
-    resources = [
-        Resource(
-            uri=_entity_id_to_uri(entity_id),
-            name=info["names"],
-            description=info.get("description", ""),
-            mimeType=None,
-        )
-        for entity_id, info in entities.items()
-    ]
-    _LOGGER.debug("Sent: %s", len(resources))
-    connection.send_result(
-        msg["id"],
-        {
-            "resources": resources,
-        },
-    )
-
-
-@websocket_api.websocket_command(
-    {
-        vol.Required("type"): "mcp/resources/read",
-        vol.Required("uri"): str,
-    }
-)
-@websocket_api.decorators.async_response
-async def websocket_resources_read(
-    hass: HomeAssistant,
-    connection: websocket_api.connection.ActiveConnection,
-    msg: dict[str, Any],
-) -> None:
-    """Handle listing resources."""
-    _LOGGER.debug("Read resource: %s", msg)
-    uri = msg["uri"]
-    entity_id = _entity_id_from_uri(uri)
-    entities = _get_exposed_entities(hass, ASSISTANT)
-    if entity_id not in entities:
-        raise vol.Invalid(f"Entity {entity_id} not found")
-    info = entities[entity_id]
-    connection.send_result(
-        msg["id"],
-        {
-            "contents": [
-                dataclasses.asdict(TextResourceContents(uri=uri, text=json.dumps(info))),
-            ]
-        },
-    )

@@ -13,7 +13,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from custom_components.model_context_protocol.const import DOMAIN
 
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -136,48 +135,3 @@ async def test_tools_call_error(
     data = result["text"]
     error = json.loads(data)
     assert error.get("error") == "MatchFailedError"
-
-
-async def test_resources_list(
-    hass: HomeAssistant,
-    hass_ws_client: WebSocketGenerator,
-) -> None:
-    """Test the resources list command."""
-    client = await hass_ws_client(hass)
-
-    await client.send_json_auto_id(
-        {
-            "type": "mcp/resources/list",
-        }
-    )
-    msg = await client.receive_json()
-    assert msg["success"]
-    results = msg["result"]["resources"]
-    assert results == [
-        {
-            "description": "",
-            "mimeType": None,
-            "name": "Kitchen",
-            "uri": "entity_id://light/kitchen",
-        }
-    ]
-
-
-async def test_resources_read(
-    hass: HomeAssistant,
-    hass_ws_client: WebSocketGenerator,
-    snapshot: SnapshotAssertion,
-) -> None:
-    """Test the resources list command."""
-    client = await hass_ws_client(hass)
-
-    await client.send_json_auto_id(
-        {
-            "type": "mcp/resources/read",
-            "uri": "entity_id://light/kitchen",
-        }
-    )
-    msg = await client.receive_json()
-    assert msg["success"]
-    results = msg["result"]["contents"]
-    assert results ==  snapshot

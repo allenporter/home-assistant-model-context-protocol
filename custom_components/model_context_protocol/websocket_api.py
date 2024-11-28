@@ -31,6 +31,7 @@ from .model import Tool, InputSchema, TextContent, Resource, TextResourceContent
 _LOGGER = logging.getLogger(__name__)
 
 URI_PREFIX = "entity_id://"
+ASSISTANT = "assistant"
 
 
 @callback
@@ -40,6 +41,19 @@ def async_register_websocket_api(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_tools_call)
     websocket_api.async_register_command(hass, websocket_resources_list)
     websocket_api.async_register_command(hass, websocket_resources_read)
+
+
+def _entity_id_to_uri(entity_id: str) -> str:
+    """Create an entity ID URI."""
+    entity_id_path = "/".join(entity_id.split("."))
+    return f"{URI_PREFIX}{entity_id_path}"
+
+def _entity_id_from_uri(uri: str) -> str:
+    """Create an entity ID URI."""
+    if not uri.startswith(URI_PREFIX):
+        raise vol.Invalid(f"Invalid URI format did not start with {URI_PREFIX}")
+    entity_id_path = uri[len(URI_PREFIX) :]
+    return ".".join(entity_id_path.split("/"))
 
 
 def _format_tool(
@@ -66,7 +80,7 @@ def _llm_context(
         context=connection.context(msg),
         user_prompt=None,
         language="*",
-        assistant=DOMAIN,
+        assistant=ASSISTANT,
         device_id=None,
     )
 
@@ -235,10 +249,10 @@ async def websocket_resources_list(
 ) -> None:
     """Handle listing resources."""
     _LOGGER.debug("List resource: %s", msg)
-    entities = _get_exposed_entities(hass, "assistant")
+    entities = _get_exposed_entities(hass, ASSISTANT)
     resources = [
         Resource(
-            uri=f"{URI_PREFIX}{entity_id}",
+            uri=_entity_id_to_uri(entity_id),
             name=info["names"],
             description=info.get("description", ""),
             mimeType=None,
@@ -269,10 +283,8 @@ async def websocket_resources_read(
     """Handle listing resources."""
     _LOGGER.debug("Read resource: %s", msg)
     uri = msg["uri"]
-    if not uri.startswith(URI_PREFIX):
-        raise vol.Invalid(f"Invalid URI format did not start with {URI_PREFIX}")
-    entity_id = uri[len(URI_PREFIX) :]
-    entities = _get_exposed_entities(hass, "assistant")
+    entity_id = _entity_id_from_uri(uri)
+    entities = _get_exposed_entities(hass, ASSISTANT)
     if entity_id not in entities:
         raise vol.Invalid(f"Entity {entity_id} not found")
     info = entities[entity_id]

@@ -52,7 +52,7 @@ def mock_light_entity_fixture(
         "on",
         {"friendly_name": "Kitchen", "temperature": Decimal("0.9"), "humidity": 65},
     )
-    async_expose_entity(hass, DOMAIN, "light.kitchen", True)
+    async_expose_entity(hass, "assistant", "light.kitchen", True)
 
 
 async def test_tools_list(
@@ -158,7 +158,7 @@ async def test_resources_list(
             "description": "",
             "mimeType": None,
             "name": "Kitchen",
-            "uri": "entity_id://light.kitchen",
+            "uri": "entity_id://light/kitchen",
         }
     ]
 
@@ -174,7 +174,7 @@ async def test_resources_read(
     await client.send_json_auto_id(
         {
             "type": "mcp/resources/read",
-            "uri": "entity_id://light.kitchen",
+            "uri": "entity_id://light/kitchen",
         }
     )
     msg = await client.receive_json()

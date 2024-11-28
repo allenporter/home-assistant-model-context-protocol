@@ -4,7 +4,11 @@ from collections.abc import Generator, AsyncGenerator
 import logging
 from unittest.mock import patch
 
+import pathlib
 import pytest
+from syrupy.extensions.amber import AmberSnapshotExtension
+from syrupy.location import PyTestLocation
+from syrupy import SnapshotAssertion
 
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -19,6 +23,26 @@ from custom_components.model_context_protocol.const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+DIFFERENT_DIRECTORY = "snapshots"
+
+
+class DifferentDirectoryExtension(AmberSnapshotExtension):
+    """Extension to set a different snapshot directory."""
+
+    @classmethod
+    def dirname(cls, *, test_location: "PyTestLocation") -> str:
+        """Override the snapshot directory name."""
+        return str(
+            pathlib.Path(test_location.filepath).parent.joinpath(DIFFERENT_DIRECTORY)
+        )
+
+
+@pytest.fixture
+def snapshot(snapshot: SnapshotAssertion):
+    """Fixture to override the snapshot directory."""
+    return snapshot.use_extension(DifferentDirectoryExtension)
 
 
 @pytest.fixture(autouse=True)

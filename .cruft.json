@@ -1,6 +1,6 @@
 {
   "template": "http://github.com/allenporter/cookiecutter-home-assistant-custom-component",
-  "commit": "c3c7360de3a77efd4f4a8f68da991235e784fe6c",
+  "commit": "8fba7a52179345983f5ee18426820cff4cf5d511",
   "checkout": null,
   "context": {
     "cookiecutter": {
